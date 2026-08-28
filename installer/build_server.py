@@ -622,7 +622,7 @@ def main():
 
         if len(sys.argv) >= 5:
             arch_arg = sys.argv[4].strip().lower()
-            if arch_arg.lower() == 'arm64':
+            if arch_arg == 'arm64':
                 windows_arch = "arm64"
                 windows_32bit = False
             elif arch_arg in ('x86', 'true'):
