@@ -1,5 +1,16 @@
+[CmdletBinding()]
+param(
+    # Architecture suffix used in installer/MSIX filenames: x86_64 (default,
+    # preserves existing behavior), x86, or arm64.
+    [Parameter(Mandatory = $false)]
+    [ValidateSet("x86_64", "x86", "arm64")]
+    [string] $Architecture = "x86_64"
+)
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+$InstallerFilter = "OpenShot-*-$Architecture.exe"
 
 function Test-Administrator {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -144,6 +155,40 @@ function Set-TemplatePublisher {
     return $false
 }
 
+function Set-TemplateProcessorArchitecture {
+    [CmdletBinding(SupportsShouldProcess)]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $TemplatePath,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("x86", "x64", "arm64")]
+        [string] $ProcessorArchitecture
+    )
+
+    $templateText = Get-Content -Path $TemplatePath -Raw
+    $pattern = "(?i)(ProcessorArchitecture\s*=\s*)([""'])([^""']*)(\2)"
+    if (-not [regex]::IsMatch($templateText, $pattern)) {
+        throw "Generated MSIX template does not expose a ProcessorArchitecture attribute"
+    }
+
+    $updatedText = [regex]::Replace(
+        $templateText,
+        $pattern,
+        {
+            param($match)
+            $match.Groups[1].Value +
+                $match.Groups[2].Value +
+                $ProcessorArchitecture +
+                $match.Groups[2].Value
+        }
+    )
+
+    if ($PSCmdlet.ShouldProcess($TemplatePath, "Set ProcessorArchitecture=$ProcessorArchitecture")) {
+        Set-Content -Path $TemplatePath -Value $updatedText -Encoding UTF8
+    }
+}
+
 function Set-TemplateElementText {
     [CmdletBinding(SupportsShouldProcess)]
     param(
@@ -193,7 +238,7 @@ function Assert-SourceInstallerNotPackaged {
             foreach ($entry in $archive.Entries) {
                 $normalizedName = $entry.FullName -replace '\\', '/'
                 if ($normalizedName -like "VFS/AppVPackageDrive/*/$sourceInstallerName" -or
-                    $normalizedName -like "VFS/AppVPackageDrive/*/OpenShot-*-x86_64.exe") {
+                    $normalizedName -like "VFS/AppVPackageDrive/*/$InstallerFilter") {
                     $entry.FullName
                 }
             }
@@ -274,8 +319,8 @@ if (-not (Test-Administrator)) {
 Set-Service wuauserv -StartupType Manual
 Start-Service wuauserv
 
-$installerMatches = @(Get-ChildItem -Path "build" -Filter "OpenShot-*-x86_64.exe" -File)
-Assert-SingleArtifact -Artifacts $installerMatches -Description "build\OpenShot-*-x86_64.exe installer"
+$installerMatches = @(Get-ChildItem -Path "build" -Filter $InstallerFilter -File)
+Assert-SingleArtifact -Artifacts $installerMatches -Description "build\$InstallerFilter installer"
 $installerPath = $installerMatches[0].FullName
 Write-Information "Using Inno installer: $installerPath"
 
@@ -323,6 +368,15 @@ if ($workingTemplateText -eq $templateText) {
 }
 Set-Content -Path $workingTemplatePath -Value $workingTemplateText -Encoding UTF8
 Assert-TemplateInstallerPath -TemplatePath $workingTemplatePath -ExpectedInstallerPath $sourceInstallerPath
+$processorArchitecture = @{
+    "x86_64" = "x64"
+    "x86" = "x86"
+    "arm64" = "arm64"
+}[$Architecture]
+Set-TemplateProcessorArchitecture `
+    -TemplatePath $workingTemplatePath `
+    -ProcessorArchitecture $processorArchitecture
+Write-Information "Generated MSIX template processor architecture: $processorArchitecture"
 $msixPublisher = $env:WINDOWS_MSIX_PUBLISHER
 if (-not $msixPublisher) {
     $msixPublisher = 'CN="OpenShot Studios, LLC", O="OpenShot Studios, LLC", STREET="2931 Ridge Rd #101", L=Rockwall, S=Texas, C=US, PostalCode=75032'
