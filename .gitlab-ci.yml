@@ -192,8 +192,9 @@ win-arm64:
     - mt.exe  -manifest installer/windows.manifest -outputresource:$EXE_PATH;1
     - python3 -u installer/build_server.py "$SLACK_TOKEN" "$GITHUB_USER" "$GITHUB_PASS" "arm64" "$CI_COMMIT_REF_NAME" "$MAC_PASSWORD" "build-only"
   when: always
-  except:
-  - tags
+  rules:
+    - if: '$ENABLE_WINDOWS_ARM64 == "1" && $CI_COMMIT_TAG == null'
+    - when: never
   tags:
     - windows-arm64
   # Requires PR B's published windows-builder-arm64 artifact/digest and a
@@ -323,8 +324,9 @@ windows:msix:package:arm64:
     - $PSVersionTable
     - powershell.exe -NoProfile -ExecutionPolicy Bypass -File installer\package_msix.ps1 -Architecture arm64
   when: on_success
-  except:
-  - tags
+  rules:
+    - if: '$ENABLE_WINDOWS_ARM64 == "1" && $CI_COMMIT_TAG == null'
+    - when: never
   tags:
     - code-sign-arm64
   # Requires an Arm64-capable MSIX packaging/signing runner tagged
@@ -353,8 +355,9 @@ win-sign-arm64:
     - py -3 -m pip install defusedxml
     - py -3 -u installer/build_server.py "$SLACK_TOKEN" "$GITHUB_USER" "$GITHUB_PASS" "arm64" "$CI_COMMIT_REF_NAME" "$MAC_PASSWORD" "sign-upload-only"
   when: on_success
-  except:
-  - tags
+  rules:
+    - if: '$ENABLE_WINDOWS_ARM64 == "1" && $CI_COMMIT_TAG == null'
+    - when: never
   tags:
     - code-sign-arm64
   # Requires signing credentials/tooling capable of signing an Arm64 PE

@@ -659,18 +659,20 @@ def main():
                 "x86": "install-x86",
                 "arm64": "install-arm64",
             }[windows_arch]
-            artifact_names = [
-                preferred_artifact,
-                *[name for name in artifact_names if name != preferred_artifact],
-            ]
-        artifact_path = next(
-            (
-                os.path.join(PATH, "build", artifact_name)
-                for artifact_name in artifact_names
-                if os.path.exists(os.path.join(PATH, "build", artifact_name))
-            ),
-            "",
-        )
+            artifact_path = os.path.join(PATH, "build", preferred_artifact)
+            if not os.path.isdir(artifact_path):
+                raise FileNotFoundError(
+                    "Required %s artifact directory not found: %s"
+                    % (windows_arch, artifact_path))
+        else:
+            artifact_path = next(
+                (
+                    os.path.join(PATH, "build", artifact_name)
+                    for artifact_name in artifact_names
+                    if os.path.exists(os.path.join(PATH, "build", artifact_name))
+                ),
+                "",
+            )
 
         # Parse artifact version files (if found)
         for repo_name in ["libopenshot-audio", "libopenshot", "openshot-qt"]:

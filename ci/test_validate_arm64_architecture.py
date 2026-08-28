@@ -64,6 +64,20 @@ class Arm64ArchitectureValidatorTests(unittest.TestCase):
         finally:
             os.unlink(lock_path)
 
+    def test_package_lock_reports_missing_pacman(self):
+        with tempfile.NamedTemporaryFile("w", delete=False) as lock:
+            lock.write("example-package=1.2.3,UNVERIFIED\n")
+            lock_path = lock.name
+        try:
+            with mock.patch.object(
+                validator.subprocess, "run", side_effect=FileNotFoundError("pacman")
+            ):
+                verified, failures = validator.verify_package_lock(lock_path)
+            self.assertEqual(verified, [])
+            self.assertIn("Unable to run pacman", failures[0])
+        finally:
+            os.unlink(lock_path)
+
 
 if __name__ == "__main__":
     unittest.main()

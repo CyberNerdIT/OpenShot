@@ -197,12 +197,16 @@ def verify_package_lock(path):
     for entry in entries:
         package, remainder = entry.split("=", 1)
         expected_version = remainder.split(",", 1)[0]
-        completed = subprocess.run(
-            ["pacman", "-Q", package],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
+        try:
+            completed = subprocess.run(
+                ["pacman", "-Q", package],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except OSError as exc:
+            failures.append("Unable to run pacman for %s: %s" % (package, exc))
+            continue
         if completed.returncode != 0:
             failures.append("Package not installed: %s" % package)
             continue
@@ -255,7 +259,7 @@ def main():
         payload_results, payload_failures = scan_payload_architecture(args.payload_root)
         if args.require_payload and not payload_results:
             payload_failures.append(
-                "No .exe/.dll/.pyd candidates found under: %s" % args.payload_root
+                "No valid PE .exe/.dll/.pyd files were scanned under: %s" % args.payload_root
             )
     elif args.require_payload:
         payload_failures.append("--require-payload was set but --payload-root was not provided.")
