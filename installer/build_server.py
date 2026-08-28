@@ -62,10 +62,6 @@ github_user = None
 github_pass = None
 github_release = None
 windows_32bit = False
-# Canonical Windows architecture enum: "x64", "x86", or "arm64".
-# windows_32bit is retained for backward compatibility and is always kept
-# in sync with windows_arch == "x86".
-windows_arch = "x64"
 version_info = {}
 windows_mode = "full"
 

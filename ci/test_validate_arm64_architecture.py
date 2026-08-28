@@ -10,6 +10,8 @@ from unittest import mock
 
 VALIDATOR_PATH = os.path.join(os.path.dirname(__file__), "validate_arm64_architecture.py")
 SPEC = importlib.util.spec_from_file_location("validate_arm64_architecture", VALIDATOR_PATH)
+if SPEC is None or SPEC.loader is None:
+    raise RuntimeError("Unable to load validator from %s" % VALIDATOR_PATH)
 validator = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(validator)
 
@@ -75,6 +77,17 @@ class Arm64ArchitectureValidatorTests(unittest.TestCase):
                 verified, failures = validator.verify_package_lock(lock_path)
             self.assertEqual(verified, [])
             self.assertIn("Unable to run pacman", failures[0])
+        finally:
+            os.unlink(lock_path)
+
+    def test_package_lock_reports_malformed_entry(self):
+        with tempfile.NamedTemporaryFile("w", delete=False) as lock:
+            lock.write("malformed-entry\n")
+            lock_path = lock.name
+        try:
+            verified, failures = validator.verify_package_lock(lock_path)
+            self.assertEqual(verified, [])
+            self.assertEqual(failures, ["Malformed package lock entry: malformed-entry"])
         finally:
             os.unlink(lock_path)
 

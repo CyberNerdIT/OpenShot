@@ -195,6 +195,9 @@ def verify_package_lock(path):
             if line.strip() and not line.lstrip().startswith("#")
         ]
     for entry in entries:
+        if "=" not in entry or "," not in entry.split("=", 1)[1]:
+            failures.append("Malformed package lock entry: %s" % entry)
+            continue
         package, remainder = entry.split("=", 1)
         expected_version = remainder.split(",", 1)[0]
         try:

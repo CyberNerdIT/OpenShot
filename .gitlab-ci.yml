@@ -177,15 +177,15 @@ win-arm64:
     - $NewPath = $NewPath + "C:\msys64\clangarm64\lib\python" + $PY_ABI + "\;C:\msys64\clangarm64\lib\python" + $PY_ABI + "\site-packages\;C:\msys64\clangarm64\lib\python" + $PY_ABI + "\site-packages\PyQt6;";
     - $env:Path = $NewPath + $originalPath
     - $env:PYTHONPATH = "$CI_PROJECT_DIR\build\install-arm64\python;C:\msys64\clangarm64\lib\python" + $PY_ABI + "\site-packages\PyQt6;"
-    - python -m unittest discover -s ci -p "test_*.py" -v
-    - python ci\validate_arm64_architecture.py --require-native-arm64 --package-lock ci\windows-arm64-packages.lock --payload-root "$CI_PROJECT_DIR\build\install-arm64" --require-payload --json-report build\arm64-architecture-report.json
+    - python3 -m unittest discover -s ci -p "test_*.py" -v
+    - python3 ci\validate_arm64_architecture.py --require-native-arm64 --package-lock ci\windows-arm64-packages.lock --payload-root "$CI_PROJECT_DIR\build\install-arm64" --require-payload --json-report build\arm64-architecture-report.json
     - $VERSION=(python3 src/launch.py -V)
     - New-Item -path "build/install-arm64/share/" -Name "$CI_PROJECT_NAME.env" -Value "CI_PROJECT_NAME:$CI_PROJECT_NAME`nCI_COMMIT_REF_NAME:$CI_COMMIT_REF_NAME`nCI_COMMIT_SHA:$CI_COMMIT_SHA`nCI_JOB_ID:$CI_JOB_ID`nCI_PIPELINE_ID:$env:CI_PIPELINE_ID`nVERSION:$VERSION" -ItemType file -force
     - $PREV_GIT_LABEL=(git describe --tags --abbrev=0 '@^')
     - git log "$PREV_GIT_LABEL..@" --oneline --pretty=format:"- %C(auto,yellow)%h%C(auto,magenta)% %C(auto,blue)%>(12,trunc)%ad %C(auto,green)%<(25,trunc)%aN%C(auto,reset)%s%C(auto,red)% gD% D" --date=short > "build/install-arm64/share/$CI_PROJECT_NAME.log"
     - python3 -u freeze.py build --git-branch=$CI_COMMIT_REF_NAME
     - $EXE_PATH = "$CI_PROJECT_DIR\build\exe.mingw-" + $PY_ABI + "\openshot-qt.exe"
-    - python ci\validate_arm64_architecture.py --require-native-arm64 --payload-root "$CI_PROJECT_DIR\build\exe.mingw-$PY_ABI" --require-payload --json-report build\frozen-arm64-architecture-report.json
+    - python3 ci\validate_arm64_architecture.py --require-native-arm64 --payload-root "$CI_PROJECT_DIR\build\exe.mingw-$PY_ABI" --require-payload --json-report build\frozen-arm64-architecture-report.json
     - $manifestPath = "installer/windows.manifest"
     - (Get-Content $manifestPath) -creplace "ARCHITECTURE", "arm64" | Set-Content $manifestPath
     - mt.exe -manifest installer/windows.manifest -validate_manifest
