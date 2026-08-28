@@ -172,7 +172,7 @@ win-arm64:
     - $env:OPENSHOT_QT_API = "pyqt6"
     - $originalPath = $env:Path
     - $PY_ABI = (python3 -c "import sysconfig; print(sysconfig.get_config_var('py_version_short'))")
-    - $PathSegments = @("$CI_PROJECT_DIR\build\install-arm64\bin", "$CI_PROJECT_DIR\build\install-arm64\python", "C:\msys64\clangarm64\bin", "C:\msys64\clangarm64\lib\python$PY_ABI", "C:\msys64\clangarm64\lib\python$PY_ABI\site-packages", "C:\msys64\clangarm64\lib\python$PY_ABI\site-packages\PyQt6")
+    - $PathSegments = @("$CI_PROJECT_DIR\build\install-arm64\bin", "$CI_PROJECT_DIR\build\install-arm64\python", "C:\msys64\clangarm64\bin", "C:\msys64\usr\bin", "C:\msys64\clangarm64\lib\python$PY_ABI", "C:\msys64\clangarm64\lib\python$PY_ABI\site-packages", "C:\msys64\clangarm64\lib\python$PY_ABI\site-packages\PyQt6")
     - $env:Path = ($PathSegments -join ";") + ";" + $originalPath
     - $env:PYTHONPATH = "$CI_PROJECT_DIR\build\install-arm64\python;C:\msys64\clangarm64\lib\python" + $PY_ABI + "\site-packages\PyQt6;"
     - python3 -m unittest discover -s ci -p "test_*.py" -v

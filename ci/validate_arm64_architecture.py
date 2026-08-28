@@ -203,7 +203,14 @@ def verify_package_lock(path):
             failures.append("Malformed package lock entry: %s" % entry)
             continue
         package, remainder = entry.split("=", 1)
-        expected_version, expected_sha256 = remainder.split(",", 1)
+        expected_version, expected_sha256 = (
+            value.strip() for value in remainder.split(",", 1)
+        )
+        if expected_sha256 != "UNVERIFIED-NO-SIGNED-SNAPSHOT":
+            failures.append(
+                "Package archive hash verification is not implemented for %s: %s"
+                % (package, expected_sha256)
+            )
         try:
             completed = subprocess.run(
                 ["pacman", "-Q", package],

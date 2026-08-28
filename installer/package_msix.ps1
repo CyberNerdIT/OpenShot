@@ -167,7 +167,7 @@ function Set-TemplateProcessorArchitecture {
     )
 
     $templateText = Get-Content -Path $TemplatePath -Raw
-    $pattern = '(?i)(ProcessorArchitecture\s*=\s*)(["''])([^"'']*)(\2)'
+    $pattern = "(?i)(ProcessorArchitecture\s*=\s*)([""'])([^""']*)(\2)"
     if (-not [regex]::IsMatch($templateText, $pattern)) {
         throw "Generated MSIX template does not expose a ProcessorArchitecture attribute"
     }

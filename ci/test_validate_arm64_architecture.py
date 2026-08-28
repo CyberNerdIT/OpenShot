@@ -58,7 +58,7 @@ class Arm64ArchitectureValidatorTests(unittest.TestCase):
 
     def test_package_lock_detects_version_drift(self):
         with tempfile.NamedTemporaryFile("w", delete=False) as lock:
-            lock.write("example-package=1.2.3,UNVERIFIED\n")
+            lock.write("example-package=1.2.3,UNVERIFIED-NO-SIGNED-SNAPSHOT\n")
             lock_path = lock.name
         try:
             completed = mock.Mock(returncode=0, stdout="example-package 1.2.4\n")
@@ -71,7 +71,7 @@ class Arm64ArchitectureValidatorTests(unittest.TestCase):
 
     def test_package_lock_reports_missing_pacman(self):
         with tempfile.NamedTemporaryFile("w", delete=False) as lock:
-            lock.write("example-package=1.2.3,UNVERIFIED\n")
+            lock.write("example-package=1.2.3,UNVERIFIED-NO-SIGNED-SNAPSHOT\n")
             lock_path = lock.name
         try:
             with mock.patch.object(
@@ -96,7 +96,7 @@ class Arm64ArchitectureValidatorTests(unittest.TestCase):
 
     def test_package_lock_rejects_unexpected_pacman_output(self):
         with tempfile.NamedTemporaryFile("w", delete=False) as lock:
-            lock.write("example-package=1.2.3,expected-hash\n")
+            lock.write("example-package=1.2.3,UNVERIFIED-NO-SIGNED-SNAPSHOT\n")
             lock_path = lock.name
         try:
             completed = mock.Mock(returncode=0, stdout="warning only\n")
@@ -104,6 +104,18 @@ class Arm64ArchitectureValidatorTests(unittest.TestCase):
                 verified, failures = validator.verify_package_lock(lock_path)
             self.assertEqual(verified, [])
             self.assertIn("Unexpected pacman output", failures[0])
+        finally:
+            os.unlink(lock_path)
+
+    def test_package_lock_rejects_unverified_real_hash(self):
+        with tempfile.NamedTemporaryFile("w", delete=False) as lock:
+            lock.write("example-package=1.2.3,abc123\n")
+            lock_path = lock.name
+        try:
+            completed = mock.Mock(returncode=0, stdout="example-package 1.2.3\n")
+            with mock.patch.object(validator.subprocess, "run", return_value=completed):
+                _verified, failures = validator.verify_package_lock(lock_path)
+            self.assertIn("hash verification is not implemented", failures[0])
         finally:
             os.unlink(lock_path)
 
