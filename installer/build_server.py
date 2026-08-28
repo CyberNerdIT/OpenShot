@@ -603,6 +603,8 @@ def sign_windows_msix_artifacts(signed_installer_path):
 
 
 def main():
+    windows_arch = "x64"
+    windows_32bit = False
     # Only run this code when directly executing this script. Parts of this file
     # are also used in the deploy.py script.
     try:

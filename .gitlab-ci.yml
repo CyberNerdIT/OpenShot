@@ -164,8 +164,8 @@ win-arm64:
   script:
     - $PSVersionTable
     - $PSDefaultParameterValues['Out-File:Encoding'] = 'utf8'
-    - try { Invoke-WebRequest -Uri "http://gitlab.openshot.org/OpenShot/libopenshot/-/jobs/artifacts/$CI_COMMIT_REF_NAME/download?job=windows-builder-arm64" -Headers @{"PRIVATE-TOKEN"="$ACCESS_TOKEN"} -OutFile "artifacts.zip" } catch { $_.Exception.Response.StatusCode.Value__ }
-    - if (-not (Test-Path "artifacts.zip")) { Invoke-WebRequest -Uri "http://gitlab.openshot.org/OpenShot/libopenshot/-/jobs/artifacts/develop/download?job=windows-builder-arm64" -Headers @{"PRIVATE-TOKEN"="$ACCESS_TOKEN"} -OutFile "artifacts.zip" }
+    - try { Invoke-WebRequest -Uri "https://gitlab.openshot.org/OpenShot/libopenshot/-/jobs/artifacts/$CI_COMMIT_REF_NAME/download?job=windows-builder-arm64" -Headers @{"PRIVATE-TOKEN"="$ACCESS_TOKEN"} -OutFile "artifacts.zip" } catch { $_.Exception.Response.StatusCode.Value__ }
+    - if (-not (Test-Path "artifacts.zip")) { Invoke-WebRequest -Uri "https://gitlab.openshot.org/OpenShot/libopenshot/-/jobs/artifacts/develop/download?job=windows-builder-arm64" -Headers @{"PRIVATE-TOKEN"="$ACCESS_TOKEN"} -OutFile "artifacts.zip" }
     - Expand-Archive -Path artifacts.zip -DestinationPath .
     - Copy-Item "$CI_PROJECT_DIR/build/install-arm64/python/*" -Destination "$CI_PROJECT_DIR"
     - $env:MSYSTEM = "CLANGARM64"
@@ -178,7 +178,7 @@ win-arm64:
     - $env:Path = $NewPath + $originalPath
     - $env:PYTHONPATH = "$CI_PROJECT_DIR\build\install-arm64\python;C:\msys64\clangarm64\lib\python" + $PY_ABI + "\site-packages\PyQt6;"
     - python -m unittest discover -s ci -p "test_*.py" -v
-    - python ci\validate_arm64_architecture.py --require-native-arm64 --payload-root "$CI_PROJECT_DIR\build\install-arm64" --require-payload --json-report build\arm64-architecture-report.json
+    - python ci\validate_arm64_architecture.py --require-native-arm64 --package-lock ci\windows-arm64-packages.lock --payload-root "$CI_PROJECT_DIR\build\install-arm64" --require-payload --json-report build\arm64-architecture-report.json
     - $VERSION=(python3 src/launch.py -V)
     - New-Item -path "build/install-arm64/share/" -Name "$CI_PROJECT_NAME.env" -Value "CI_PROJECT_NAME:$CI_PROJECT_NAME`nCI_COMMIT_REF_NAME:$CI_COMMIT_REF_NAME`nCI_COMMIT_SHA:$CI_COMMIT_SHA`nCI_JOB_ID:$CI_JOB_ID`nCI_PIPELINE_ID:$env:CI_PIPELINE_ID`nVERSION:$VERSION" -ItemType file -force
     - $PREV_GIT_LABEL=(git describe --tags --abbrev=0 '@^')

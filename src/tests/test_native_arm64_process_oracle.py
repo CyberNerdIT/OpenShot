@@ -16,7 +16,6 @@
 
 import ctypes
 import importlib.util
-import os
 import sys
 import unittest
 from contextlib import redirect_stdout

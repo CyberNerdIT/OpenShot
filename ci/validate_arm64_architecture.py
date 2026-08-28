@@ -37,6 +37,7 @@ import argparse
 import ctypes
 import json
 import os
+import subprocess
 import struct
 import sys
 
@@ -80,24 +81,27 @@ def read_native_process_oracle():
     try:
         kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
         kernel32.GetCurrentProcess.restype = ctypes.c_void_p
-        kernel32.IsWow64Process2.argtypes = [
+        is_wow64_process2 = getattr(kernel32, "IsWow64Process2", None)
+        if is_wow64_process2 is None:
+            result["reason"] = "IsWow64Process2 is unavailable on this Windows system."
+            return result
+        is_wow64_process2.argtypes = [
             ctypes.c_void_p,
             ctypes.POINTER(ctypes.c_ushort),
             ctypes.POINTER(ctypes.c_ushort),
         ]
-        kernel32.IsWow64Process2.restype = ctypes.c_int
+        is_wow64_process2.restype = ctypes.c_int
         process_machine = ctypes.c_ushort(0)
         native_machine = ctypes.c_ushort(0)
         handle = kernel32.GetCurrentProcess()
-        ok = kernel32.IsWow64Process2(
+        ok = is_wow64_process2(
             handle,
             ctypes.byref(process_machine),
             ctypes.byref(native_machine),
         )
         if not ok:
             result["reason"] = (
-                "IsWow64Process2 returned failure (GetLastError=%s); "
-                "this Windows build may predate the API (requires 10.0.17763+)."
+                "IsWow64Process2 returned failure (GetLastError=%s)."
                 % ctypes.get_last_error()
             )
             return result
@@ -181,6 +185,38 @@ def scan_payload_architecture(root):
     return results, failures
 
 
+def verify_package_lock(path):
+    failures = []
+    verified = []
+    with open(path, encoding="utf-8") as stream:
+        entries = [
+            line.strip()
+            for line in stream
+            if line.strip() and not line.lstrip().startswith("#")
+        ]
+    for entry in entries:
+        package, remainder = entry.split("=", 1)
+        expected_version = remainder.split(",", 1)[0]
+        completed = subprocess.run(
+            ["pacman", "-Q", package],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if completed.returncode != 0:
+            failures.append("Package not installed: %s" % package)
+            continue
+        fields = completed.stdout.strip().split()
+        actual_version = fields[-1] if len(fields) >= 2 else ""
+        verified.append({"package": package, "version": actual_version})
+        if actual_version != expected_version:
+            failures.append(
+                "Wrong package version for %s: %s (expected %s)"
+                % (package, actual_version, expected_version)
+            )
+    return verified, failures
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -204,6 +240,11 @@ def main():
         default=None,
         help="Optional path to write the full machine-readable report.",
     )
+    parser.add_argument(
+        "--package-lock",
+        default=None,
+        help="Verify installed pacman package versions against this lock file.",
+    )
     args = parser.parse_args()
 
     oracle = read_native_process_oracle()
@@ -219,6 +260,11 @@ def main():
     elif args.require_payload:
         payload_failures.append("--require-payload was set but --payload-root was not provided.")
 
+    package_results = []
+    package_failures = []
+    if args.package_lock:
+        package_results, package_failures = verify_package_lock(args.package_lock)
+
     report = {
         "contract": "windows-arm64-clangarm64-v1",
         "amendment": "A1",
@@ -228,6 +274,9 @@ def main():
         "payload_files_scanned": len(payload_results),
         "payload_failures": payload_failures,
         "payload_results": payload_results,
+        "package_lock": args.package_lock,
+        "package_results": package_results,
+        "package_failures": package_failures,
     }
 
     print("== Native Arm64 process oracle (design-amendment-A1) ==")
@@ -248,6 +297,15 @@ def main():
     else:
         print("  SKIPPED: no --payload-root supplied")
 
+    print("== MSYS2 package lock ==")
+    if args.package_lock:
+        print("  lock = %s" % args.package_lock)
+        print("  packages verified = %d" % len(package_results))
+        for failure in package_failures:
+            print("  FAIL: %s" % failure)
+    else:
+        print("  SKIPPED: no --package-lock supplied")
+
     if args.json_report:
         with open(args.json_report, "w", encoding="utf-8") as f:
             json.dump(report, f, indent=2)
@@ -265,6 +323,9 @@ def main():
 
     if payload_failures:
         print("RESULT: FAIL (%d payload architecture problem(s))" % len(payload_failures))
+        return 1
+    if package_failures:
+        print("RESULT: FAIL (%d package lock problem(s))" % len(package_failures))
         return 1
 
     print("RESULT: PASS")

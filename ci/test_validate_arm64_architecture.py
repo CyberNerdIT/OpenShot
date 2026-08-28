@@ -1,4 +1,5 @@
 import contextlib
+import importlib.util
 import io
 import os
 import struct
@@ -7,7 +8,10 @@ import tempfile
 import unittest
 from unittest import mock
 
-import validate_arm64_architecture as validator
+VALIDATOR_PATH = os.path.join(os.path.dirname(__file__), "validate_arm64_architecture.py")
+SPEC = importlib.util.spec_from_file_location("validate_arm64_architecture", VALIDATOR_PATH)
+validator = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(validator)
 
 
 def write_pe(path, machine):
@@ -46,6 +50,19 @@ class Arm64ArchitectureValidatorTests(unittest.TestCase):
             with mock.patch.object(sys, "argv", ["validator", "--require-native-arm64"]):
                 with contextlib.redirect_stdout(io.StringIO()):
                     self.assertEqual(validator.main(), 1)
+
+    def test_package_lock_detects_version_drift(self):
+        with tempfile.NamedTemporaryFile("w", delete=False) as lock:
+            lock.write("example-package=1.2.3,UNVERIFIED\n")
+            lock_path = lock.name
+        try:
+            completed = mock.Mock(returncode=0, stdout="example-package 1.2.4\n")
+            with mock.patch.object(validator.subprocess, "run", return_value=completed):
+                verified, failures = validator.verify_package_lock(lock_path)
+            self.assertEqual(verified[0]["version"], "1.2.4")
+            self.assertEqual(len(failures), 1)
+        finally:
+            os.unlink(lock_path)
 
 
 if __name__ == "__main__":
