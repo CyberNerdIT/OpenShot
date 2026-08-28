@@ -30,6 +30,8 @@ VALIDATOR_PATH = Path(__file__).resolve().parents[2] / "ci" / "validate_arm64_ar
 VALIDATOR_SPEC = importlib.util.spec_from_file_location(
     "validate_arm64_architecture", VALIDATOR_PATH
 )
+if VALIDATOR_SPEC is None or VALIDATOR_SPEC.loader is None:
+    raise RuntimeError("Unable to load validator from %s" % VALIDATOR_PATH)
 validator = importlib.util.module_from_spec(VALIDATOR_SPEC)
 VALIDATOR_SPEC.loader.exec_module(validator)
 

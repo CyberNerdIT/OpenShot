@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 @file
-@brief Reusable Windows Arm64 architecture/import validator (design-spec.md
+@brief Reusable Windows Arm64 architecture validator (design-spec.md
        G2/G3/G8/G11) implementing design-amendment-A1 native-process
        semantics.
 
@@ -235,7 +235,7 @@ def main():
     parser.add_argument(
         "--require-payload",
         action="store_true",
-        help="Fail if --payload-root is omitted or contains zero candidate files.",
+        help="Fail if --payload-root is omitted or contains no valid PE candidate files.",
     )
     parser.add_argument(
         "--require-native-arm64",
