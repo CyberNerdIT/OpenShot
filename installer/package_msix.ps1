@@ -369,12 +369,15 @@ if ($workingTemplateText -eq $templateText) {
 }
 Set-Content -Path $workingTemplatePath -Value $workingTemplateText -Encoding UTF8
 Assert-TemplateInstallerPath -TemplatePath $workingTemplatePath -ExpectedInstallerPath $sourceInstallerPath
-if ($Architecture -eq "arm64") {
-    Set-TemplateProcessorArchitecture `
-        -TemplatePath $workingTemplatePath `
-        -ProcessorArchitecture "arm64"
-    Write-Information "Generated MSIX template processor architecture: arm64"
-}
+$processorArchitecture = @{
+    "x86_64" = "x64"
+    "x86" = "x86"
+    "arm64" = "arm64"
+}[$Architecture]
+Set-TemplateProcessorArchitecture `
+    -TemplatePath $workingTemplatePath `
+    -ProcessorArchitecture $processorArchitecture
+Write-Information "Generated MSIX template processor architecture: $processorArchitecture"
 $msixPublisher = $env:WINDOWS_MSIX_PUBLISHER
 if (-not $msixPublisher) {
     $msixPublisher = 'CN="OpenShot Studios, LLC", O="OpenShot Studios, LLC", STREET="2931 Ridge Rd #101", L=Rockwall, S=Texas, C=US, PostalCode=75032'

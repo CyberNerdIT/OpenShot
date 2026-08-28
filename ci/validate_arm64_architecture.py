@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 OpenShot Studios, LLC
+# SPDX-License-Identifier: LGPL-3.0-or-later
+
 """
 @file
 @brief Reusable Windows Arm64 architecture validator (design-spec.md
@@ -155,8 +158,9 @@ def scan_payload_architecture(root):
         failures.append("Payload root does not exist: %s" % root)
         return results, failures
 
-    for dirpath, _dirnames, filenames in os.walk(root):
-        for filename in filenames:
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames.sort()
+        for filename in sorted(filenames):
             ext = os.path.splitext(filename)[1].lower()
             if ext not in (".exe", ".dll", ".pyd"):
                 continue

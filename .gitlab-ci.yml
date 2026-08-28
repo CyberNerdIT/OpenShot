@@ -178,6 +178,7 @@ win-arm64:
     - $env:Path = $NewPath + $originalPath
     - $env:PYTHONPATH = "$CI_PROJECT_DIR\build\install-arm64\python;C:\msys64\clangarm64\lib\python" + $PY_ABI + "\site-packages\PyQt6;"
     - python3 -m unittest discover -s ci -p "test_*.py" -v
+    - python3 -m unittest discover -s src\tests -t src\tests -p test_native_arm64_process_oracle.py -v
     - python3 ci\validate_arm64_architecture.py --require-native-arm64 --package-lock ci\windows-arm64-packages.lock --payload-root "$CI_PROJECT_DIR\build\install-arm64" --require-payload --json-report build\arm64-architecture-report.json
     - $VERSION=(python3 src/launch.py -V)
     - New-Item -path "build/install-arm64/share/" -Name "$CI_PROJECT_NAME.env" -Value "CI_PROJECT_NAME:$CI_PROJECT_NAME`nCI_COMMIT_REF_NAME:$CI_COMMIT_REF_NAME`nCI_COMMIT_SHA:$CI_COMMIT_SHA`nCI_JOB_ID:$CI_JOB_ID`nCI_PIPELINE_ID:$env:CI_PIPELINE_ID`nVERSION:$VERSION" -ItemType file -force
