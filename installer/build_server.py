@@ -62,6 +62,10 @@ github_user = None
 github_pass = None
 github_release = None
 windows_32bit = False
+# Canonical Windows architecture enum: "x64", "x86", or "arm64".
+# windows_32bit is retained for backward compatibility and is always kept
+# in sync with windows_arch == "x86".
+windows_arch = "x64"
 version_info = {}
 windows_mode = "full"
 
@@ -619,9 +623,16 @@ def main():
             repo = gh.repository("OpenShot", "openshot-qt")
 
         if len(sys.argv) >= 5:
-            windows_32bit = False
-            if sys.argv[4] == 'True':
+            arch_arg = sys.argv[4].strip()
+            if arch_arg.lower() == 'arm64':
+                windows_arch = "arm64"
+                windows_32bit = False
+            elif arch_arg == 'True':
+                windows_arch = "x86"
                 windows_32bit = True
+            else:
+                windows_arch = "x64"
+                windows_32bit = False
 
         mac_password = ""
         if len(sys.argv) >= 7:
@@ -637,13 +648,27 @@ def main():
                 git_branch_name)
             )
 
-        # Detect artifact folder (if any)
-        artifact_path = os.path.join(PATH, "build", "install-x64")
-        if not os.path.exists(artifact_path):
-            artifact_path = os.path.join(PATH, "build", "install-x86")
-        if not os.path.exists(artifact_path):
-            # Default to user install path
-            artifact_path = ""
+        # Detect the artifact folder for the active Windows architecture.
+        # Preserve the historical x64/x86 fallback order on other platforms.
+        artifact_names = ["install-x64", "install-x86"]
+        if platform.system() == "Windows":
+            preferred_artifact = {
+                "x64": "install-x64",
+                "x86": "install-x86",
+                "arm64": "install-arm64",
+            }[windows_arch]
+            artifact_names = [
+                preferred_artifact,
+                *[name for name in artifact_names if name != preferred_artifact],
+            ]
+        artifact_path = next(
+            (
+                os.path.join(PATH, "build", artifact_name)
+                for artifact_name in artifact_names
+                if os.path.exists(os.path.join(PATH, "build", artifact_name))
+            ),
+            "",
+        )
 
         # Parse artifact version files (if found)
         for repo_name in ["libopenshot-audio", "libopenshot", "openshot-qt"]:
@@ -677,6 +702,9 @@ def main():
         elif platform.system() == "Darwin":
             app_name += "-x86_64.dmg"
             app_upload_bucket = "releases.openshot.org/mac"
+        elif platform.system() == "Windows" and windows_arch == "arm64":
+            app_name += "-arm64.exe"
+            app_upload_bucket = "releases.openshot.org/windows"
         elif platform.system() == "Windows" and not windows_32bit:
             app_name += "-x86_64.exe"
             app_upload_bucket = "releases.openshot.org/windows"
@@ -830,7 +858,9 @@ def main():
 
         if platform.system() == "Windows":
             only_64_bit = "x64"
-            if windows_32bit:
+            if windows_arch == "arm64":
+                only_64_bit = "arm64"
+            elif windows_32bit:
                 only_64_bit = ""
 
             if windows_mode != "sign-upload-only":
@@ -865,23 +895,50 @@ def main():
                     else:
                         output("Invalid delete path: %s" % full_delete_path)
 
-                # Replace these folders (cx_Freeze messes this up, so this fixes it)
+                # Replace these folders (cx_Freeze messes this up, so this fixes it).
+                # windows-arm64-clangarm64-v1 uses Qt6/PyQt6 from the CLANGARM64
+                # prefix; the MinGW Qt5 plugin-copy quirk below only applies to
+                # the existing x64/x86 MinGW Qt5 lanes and is left unchanged.
                 paths_to_replace = ['imageformats', 'platforms']
-                for replace_name in paths_to_replace:
-                    if windows_32bit:
-                        shutil.copytree(
-                            os.path.join('C:\\msys64\\mingw32\\share\\qt5\\plugins', replace_name),
-                            os.path.join(exe_dir, replace_name))
-                    else:
-                        shutil.copytree(
-                            os.path.join('C:\\msys64\\mingw64\\share\\qt5\\plugins', replace_name),
-                            os.path.join(exe_dir, replace_name))
+                if windows_arch == "arm64":
+                    paths_to_replace.extend(['iconengines', 'multimedia'])
+                    for replace_name in paths_to_replace:
+                        arm64_plugin_src = os.path.join(
+                            'C:\\msys64\\clangarm64\\share\\qt6\\plugins', replace_name)
+                        if not os.path.isdir(arm64_plugin_src):
+                            raise FileNotFoundError(
+                                "Required Qt6 arm64 plugin directory not found: %s"
+                                % arm64_plugin_src)
+                        dest = os.path.join(exe_dir, replace_name)
+                        if os.path.exists(dest):
+                            shutil.rmtree(dest)
+                        shutil.copytree(arm64_plugin_src, dest)
+                else:
+                    for replace_name in paths_to_replace:
+                        if windows_32bit:
+                            shutil.copytree(
+                                os.path.join('C:\\msys64\\mingw32\\share\\qt5\\plugins', replace_name),
+                                os.path.join(exe_dir, replace_name))
+                        else:
+                            shutil.copytree(
+                                os.path.join('C:\\msys64\\mingw64\\share\\qt5\\plugins', replace_name),
+                                os.path.join(exe_dir, replace_name))
 
-                # Copy Qt5Core.dll, Qt5Svg.dll to root of frozen directory
-                paths_to_copy = [
-                    ("Qt5Core.dll", "C:\\msys64\\mingw64\\bin\\"),
-                    ("Qt5Svg.dll", "C:\\msys64\\mingw64\\bin\\"),
-                    ]
+                # Copy Qt5Core.dll, Qt5Svg.dll (or, for arm64, Qt6Core.dll/Qt6Svg.dll)
+                # to root of frozen directory
+                if windows_arch == "arm64":
+                    paths_to_copy = [
+                        ("Qt6Core.dll", "C:\\msys64\\clangarm64\\bin\\"),
+                        ("Qt6Gui.dll", "C:\\msys64\\clangarm64\\bin\\"),
+                        ("Qt6Widgets.dll", "C:\\msys64\\clangarm64\\bin\\"),
+                        ("Qt6Svg.dll", "C:\\msys64\\clangarm64\\bin\\"),
+                        ("Qt6Multimedia.dll", "C:\\msys64\\clangarm64\\bin\\"),
+                        ]
+                else:
+                    paths_to_copy = [
+                        ("Qt5Core.dll", "C:\\msys64\\mingw64\\bin\\"),
+                        ("Qt5Svg.dll", "C:\\msys64\\mingw64\\bin\\"),
+                        ]
                 if windows_32bit:
                     paths_to_copy = [
                         ("Qt5Core.dll", "C:\\msys64\\mingw32\\bin\\"),
@@ -890,6 +947,9 @@ def main():
                 for qt_file_name, qt_parent_path in paths_to_copy:
                     qt5_path = os.path.join(qt_parent_path, qt_file_name)
                     new_qt5_path = os.path.join(exe_dir, qt_file_name)
+                    if windows_arch == "arm64" and not os.path.isfile(qt5_path):
+                        raise FileNotFoundError(
+                            "Required Qt6 arm64 runtime DLL not found: %s" % qt5_path)
                     if os.path.exists(qt5_path) and not os.path.exists(new_qt5_path):
                         output("Copying %s to %s" % (qt5_path, new_qt5_path))
                         shutil.copy(qt5_path, new_qt5_path)
