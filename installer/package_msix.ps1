@@ -168,13 +168,7 @@ function Set-TemplateProcessorArchitecture {
 
     [xml] $templateXml = Get-Content -Path $TemplatePath -Raw
     $architectureAttributes = @(
-        foreach ($node in $templateXml.SelectNodes('//*')) {
-            foreach ($attribute in $node.Attributes) {
-                if ($attribute.LocalName -eq "ProcessorArchitecture") {
-                    $attribute
-                }
-            }
-        }
+        $templateXml.SelectNodes('//@*[local-name()="ProcessorArchitecture"]')
     )
 
     if ($architectureAttributes.Count -eq 0) {

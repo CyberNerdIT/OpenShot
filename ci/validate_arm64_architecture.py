@@ -203,7 +203,7 @@ def verify_package_lock(path):
             failures.append("Malformed package lock entry: %s" % entry)
             continue
         package, remainder = entry.split("=", 1)
-        expected_version = remainder.split(",", 1)[0]
+        expected_version, expected_sha256 = remainder.split(",", 1)
         try:
             completed = subprocess.run(
                 ["pacman", "-Q", package],
@@ -217,9 +217,20 @@ def verify_package_lock(path):
         if completed.returncode != 0:
             failures.append("Package not installed: %s" % package)
             continue
-        fields = completed.stdout.strip().split()
-        actual_version = fields[-1] if len(fields) >= 2 else ""
-        verified.append({"package": package, "version": actual_version})
+        lines = [line.strip() for line in completed.stdout.splitlines() if line.strip()]
+        fields = lines[0].split() if lines else []
+        if len(fields) != 2 or fields[0] != package:
+            failures.append(
+                "Unexpected pacman output for %s: %r" % (package, completed.stdout)
+            )
+            continue
+        actual_version = fields[1]
+        verified.append({
+            "package": package,
+            "version": actual_version,
+            "expected_version": expected_version,
+            "expected_sha256": expected_sha256,
+        })
         if actual_version != expected_version:
             failures.append(
                 "Wrong package version for %s: %s (expected %s)"

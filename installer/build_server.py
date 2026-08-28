@@ -621,16 +621,20 @@ def main():
             repo = gh.repository("OpenShot", "openshot-qt")
 
         if len(sys.argv) >= 5:
-            arch_arg = sys.argv[4].strip()
+            arch_arg = sys.argv[4].strip().lower()
             if arch_arg.lower() == 'arm64':
                 windows_arch = "arm64"
                 windows_32bit = False
-            elif arch_arg == 'True':
+            elif arch_arg in ('x86', 'true'):
                 windows_arch = "x86"
                 windows_32bit = True
-            else:
+            elif arch_arg in ('x64', 'false'):
                 windows_arch = "x64"
                 windows_32bit = False
+            else:
+                raise ValueError(
+                    "Unsupported Windows architecture %r; expected x86, x64, "
+                    "arm64, True, or False" % sys.argv[4])
 
         mac_password = ""
         if len(sys.argv) >= 7:
