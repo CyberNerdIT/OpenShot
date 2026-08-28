@@ -94,6 +94,17 @@ class Arm64ArchitectureValidatorTests(unittest.TestCase):
         finally:
             os.unlink(lock_path)
 
+    def test_package_lock_rejects_unsafe_package_name(self):
+        with tempfile.NamedTemporaryFile("w", delete=False) as lock:
+            lock.write("-unsafe=1.2.3,UNVERIFIED-NO-SIGNED-SNAPSHOT\n")
+            lock_path = lock.name
+        try:
+            verified, failures = validator.verify_package_lock(lock_path)
+            self.assertEqual(verified, [])
+            self.assertEqual(failures, ["Invalid package name in lock: '-unsafe'"])
+        finally:
+            os.unlink(lock_path)
+
     def test_package_lock_rejects_unexpected_pacman_output(self):
         with tempfile.NamedTemporaryFile("w", delete=False) as lock:
             lock.write("example-package=1.2.3,UNVERIFIED-NO-SIGNED-SNAPSHOT\n")

@@ -40,6 +40,7 @@ import argparse
 import ctypes
 import json
 import os
+import re
 import subprocess
 import struct
 import sys
@@ -203,6 +204,9 @@ def verify_package_lock(path):
             failures.append("Malformed package lock entry: %s" % entry)
             continue
         package, remainder = entry.split("=", 1)
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9@._+:-]*", package):
+            failures.append("Invalid package name in lock: %r" % package)
+            continue
         expected_version, expected_sha256 = (
             value.strip() for value in remainder.split(",", 1)
         )
@@ -213,7 +217,7 @@ def verify_package_lock(path):
             )
         try:
             completed = subprocess.run(
-                ["pacman", "-Q", package],
+                ["pacman", "-Q", "--", package],
                 capture_output=True,
                 text=True,
                 check=False,

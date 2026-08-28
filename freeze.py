@@ -146,7 +146,7 @@ msystem_artifact = {
     "mingw64": "install-x64",
     "mingw32": "install-x86",
 }.get(os.getenv("MSYSTEM", "").lower())
-artifact_names = [name for name in [msystem_artifact, "install-x64", "install-x86", "install-arm64"] if name]
+artifact_names = [msystem_artifact] if msystem_artifact else ["install-x64", "install-x86"]
 artifact_path = next(
     (
         os.path.join(PATH, "build", artifact_name)
