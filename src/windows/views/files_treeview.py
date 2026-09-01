@@ -49,6 +49,7 @@ from .files_thumbnail_overlay import paint_media_overlay, paint_proxy_badge
 from .menu import StyledContextMenu, add_bound_action
 from .name_search_treeview import NameColumnKeyboardSearchMixin
 from .optimized_preview_menu import add_optimized_preview_menu
+from .haram_filter_menu import add_haram_filter_menu
 
 
 def _is_generation_placeholder(file_id):
@@ -242,6 +243,7 @@ class FilesTreeView(NameColumnKeyboardSearchMixin, QTreeView):
 
             add_bound_action(menu, self.win, "actionPreview_File", _("Preview File"), "actionPreview_File_trigger")
             add_optimized_preview_menu(self.win, menu)
+            add_haram_filter_menu(self.win, menu)
             menu.addSeparator()
             add_bound_action(menu, self.win, "actionSplitFile", _("Split Clip"), "actionSplitFile_trigger")
             add_bound_action(menu, self.win, "actionExportFiles", _("Export Selected Clips"), "actionExportFiles_trigger")

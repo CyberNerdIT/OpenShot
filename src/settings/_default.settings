@@ -376,6 +376,45 @@
     "type": "spinner-int"
   },
   {
+    "value": false,
+    "title": "Automatically Filter Skin on Import",
+    "type": "bool",
+    "category": "Haram Filter",
+    "setting": "haram-filter-auto-import"
+  },
+  {
+    "max": 100,
+    "title": "Skin Filter Blur Amount",
+    "category": "Haram Filter",
+    "min": 1,
+    "setting": "haram-filter-blur-amount",
+    "value": 20,
+    "type": "spinner-int"
+  },
+  {
+    "value": true,
+    "title": "Skin Filter Grayscale",
+    "type": "bool",
+    "category": "Haram Filter",
+    "setting": "haram-filter-grayscale"
+  },
+  {
+    "value": false,
+    "title": "Skin Filter Pixelate (instead of Blur)",
+    "type": "bool",
+    "category": "Haram Filter",
+    "setting": "haram-filter-pixelate"
+  },
+  {
+    "max": 1,
+    "title": "Skin Detection Sensitivity",
+    "category": "Haram Filter",
+    "min": 0,
+    "setting": "haram-filter-sensitivity",
+    "value": 0.5,
+    "type": "spinner"
+  },
+  {
     "value": true,
     "title": "Enable Autosave",
     "type": "bool",

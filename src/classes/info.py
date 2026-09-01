@@ -70,6 +70,7 @@ PROTOBUF_DATA_PATH = os.path.join(USER_PATH, "protobuf_data")
 YOLO_PATH = os.path.join(USER_PATH, "yolo")
 CLIPBOARD_PATH = os.path.join(USER_PATH, "clipboard")
 PROXY_PATH = os.path.join(USER_PATH, "optimized")
+HARAM_FILTER_PATH = os.path.join(USER_PATH, "haram-filtered")
 # User files
 BACKUP_FILE = os.path.join(BACKUP_PATH, "backup.osp")
 USER_DEFAULT_PROJECT = os.path.join(USER_PATH, "default.osp")

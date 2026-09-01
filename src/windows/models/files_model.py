@@ -425,6 +425,7 @@ class FilesModel(QObject, updates.UpdateInterface):
         if not isinstance(files, (list, tuple)):
             files = [files]
         scroll_to_files = []
+        newly_added_files = []
 
         start_count = len(files)
         for count, filepath in enumerate(files):
@@ -521,6 +522,7 @@ class FilesModel(QObject, updates.UpdateInterface):
                 # Save file
                 new_file.save()
                 scroll_to_files.append(new_file)
+                newly_added_files.append(new_file)
 
                 if start_count > 15:
                     message = _("Importing %(count)d / %(total)d") % {
@@ -567,6 +569,12 @@ class FilesModel(QObject, updates.UpdateInterface):
 
         message = _("Imported %(count)d files") % {"count": len(files) - 1}
         app.window.statusBar.showMessage(message, 3000)
+
+        # Automatically skin-filter newly imported files (when enabled in
+        # preferences). Filtered outputs themselves are never re-filtered.
+        haram_filter_service = getattr(app.window, "haram_filter_service", None)
+        if haram_filter_service and newly_added_files:
+            haram_filter_service.maybe_auto_filter(newly_added_files)
 
     def get_image_sequence_details(self, file_path):
         """Inspect a file path and determine if this is an image sequence"""

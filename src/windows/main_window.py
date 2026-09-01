@@ -69,6 +69,7 @@ from classes.query import File, Clip, Transition, Marker, Track, Effect
 from classes.clipboard import ClipboardManager
 from classes.generation_queue import GenerationQueueManager
 from classes.generation_service import GenerationService
+from classes.haram_filter_service import HaramFilterService
 from classes.proxy_service import ProxyService
 from classes.thumbnail import httpThumbnailServerThread, httpThumbnailException
 from classes.time_parts import secondsToTimecode
@@ -253,6 +254,8 @@ class MainWindow(updates.UpdateWatcher, QMainWindow):
             self.generation_service.cleanup_temp_files()
         if getattr(self, "proxy_service", None):
             self.proxy_service.shutdown()
+        if getattr(self, "haram_filter_service", None):
+            self.haram_filter_service.shutdown()
 
         # Stop ZMQ polling thread (if any)
         if app.logger_libopenshot:
@@ -2662,6 +2665,25 @@ class MainWindow(updates.UpdateWatcher, QMainWindow):
         log.debug("actionOptimizedPreviewDeleteAndUnlink_trigger files=%s", [getattr(f, "id", None) for f in files])
         self.proxy_service.delete_and_unlink_for_files(files)
 
+    def _haram_filter_files_for_action(self):
+        service = getattr(self, "haram_filter_service", None)
+        if not service:
+            return []
+        return [
+            file_obj for file_obj in (self.selected_files() or [])
+            if file_obj and service.is_filterable(file_obj)
+        ]
+
+    def actionHaramFilterApply_trigger(self, checked=True):
+        files = self._haram_filter_files_for_action()
+        log.debug("actionHaramFilterApply_trigger files=%s", [getattr(f, "id", None) for f in files])
+        self.haram_filter_service.filter_files(files)
+
+    def actionHaramFilterCancel_trigger(self, checked=True):
+        files = self._haram_filter_files_for_action()
+        log.debug("actionHaramFilterCancel_trigger files=%s", [getattr(f, "id", None) for f in files])
+        self.haram_filter_service.cancel_for_files(files)
+
     def _refresh_optimized_preview_action_states(self):
         if getattr(self, "optimizedPreviewMenu", None):
             populate_optimized_preview_menu(self, self.optimizedPreviewMenu)
@@ -4629,6 +4651,17 @@ class MainWindow(updates.UpdateWatcher, QMainWindow):
         if getattr(self, "menuClear", None):
             self.menuClear.aboutToShow.connect(self._refresh_clear_menu_action_states)
 
+    def _init_haram_filter_actions(self):
+        _ = get_app()._tr
+
+        self.actionHaramFilterApply = QAction(_("Filter Skin (Blur)"), self)
+        self.actionHaramFilterApply.setObjectName("actionHaramFilterApply")
+        self.actionHaramFilterApply.triggered.connect(self.actionHaramFilterApply_trigger)
+
+        self.actionHaramFilterCancel = QAction(_("Cancel"), self)
+        self.actionHaramFilterCancel.setObjectName("actionHaramFilterCancel")
+        self.actionHaramFilterCancel.triggered.connect(self.actionHaramFilterCancel_trigger)
+
     def actionInsertKeyframe(self):
         log.debug("actionInsertKeyframe")
         if self.selected_clips or self.selected_transitions:
@@ -5361,10 +5394,12 @@ class MainWindow(updates.UpdateWatcher, QMainWindow):
         self.setup_toolbars()
         self.generation_service = GenerationService(self)
         self.proxy_service = ProxyService(self)
+        self.haram_filter_service = HaramFilterService(self)
         self.generation_queue = GenerationQueueManager(self)
         self.generation_queue.job_finished.connect(self._on_generation_job_finished)
         self._init_generation_actions()
         self._init_proxy_actions()
+        self._init_haram_filter_actions()
         self.refresh_comfy_availability_async()
 
         # Add window as watcher to receive undo/redo status updates

@@ -68,7 +68,7 @@ class Preferences(QDialog):
         ui_util.init_ui(self)
 
         # Define the custom category order
-        self.custom_order = ["General", "Timeline", "Preview", "Autosave", "Cache", "Performance", "Keyboard", "Location", "Advanced"]
+        self.custom_order = ["General", "Timeline", "Preview", "Haram Filter", "Autosave", "Cache", "Performance", "Keyboard", "Location", "Advanced"]
 
         # Get settings
         self.s = get_app().get_settings()
