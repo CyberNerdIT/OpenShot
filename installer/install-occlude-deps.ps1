@@ -97,6 +97,18 @@ if (-not (Test-Path $venvPython)) {
     }
 }
 & $venvPython -m pip install --upgrade pip
+
+# PyPI's default torch wheel on Windows is CPU-only; with an NVIDIA GPU
+# present, preinstall the CUDA build so blurring runs on the GPU (re-runs
+# upgrade an earlier CPU install too).
+if (Get-Command nvidia-smi -ErrorAction SilentlyContinue) {
+    Write-Step "NVIDIA GPU detected - installing CUDA-enabled PyTorch"
+    & $venvPython -m pip install --upgrade --no-cache-dir torch --index-url https://download.pytorch.org/whl/cu126
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning "CUDA PyTorch install failed - continuing with the standard (CPU) build"
+    }
+}
+
 $occludeInstalled = $false
 foreach ($spec in $OccludeSpecs) {
     Write-Host "Trying: pip install $spec"

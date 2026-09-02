@@ -331,6 +331,14 @@ class Export(QDialog):
 
         def on_progress(fraction, stage):
             self.progressExportVideo.setValue(int(fraction * 1000))
+            self.setWindowTitle("%d%% %s" % (
+                int(fraction * 100), _("Blurring video with OCCLUDE, please wait...")))
+            QCoreApplication.processEvents()
+
+        def on_status(line):
+            # Model downloads and pass banners arrive here before any frame
+            # progress exists - surface them so the wait doesn't look hung
+            self.setWindowTitle("OCCLUDE: %s" % line[:100])
             QCoreApplication.processEvents()
 
         def is_cancelled():
@@ -340,7 +348,8 @@ class Export(QDialog):
 
         success, message = occlude_wrapper.run_occlude(
             export_file_path, blurred_path,
-            progress_callback=on_progress, cancel_check=is_cancelled)
+            progress_callback=on_progress, cancel_check=is_cancelled,
+            status_callback=on_status)
 
         if success:
             self.progressExportVideo.setValue(1000)

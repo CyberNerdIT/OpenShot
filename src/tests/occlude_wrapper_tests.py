@@ -158,14 +158,17 @@ class TestRunOcclude(unittest.TestCase):
         out_dir = self._with_fake(FAKE_OCCLUDE)
         output = os.path.join(out_dir, "video_occluded.mp4")
         fractions = []
+        status_lines = []
         success, message = occlude_wrapper.run_occlude(
             "input.mp4", output,
-            progress_callback=lambda f, stage: fractions.append(f))
+            progress_callback=lambda f, stage: fractions.append(f),
+            status_callback=status_lines.append)
         self.assertTrue(success, message)
         self.assertTrue(os.path.exists(output))
         self.assertEqual(message, "")
         self.assertTrue(fractions)
         self.assertEqual(fractions[-1], 1.0)
+        self.assertIn("some ordinary log line", status_lines)
 
     def test_failing_run_surfaces_error_output(self):
         out_dir = self._with_fake(FAKE_OCCLUDE_FAILING)

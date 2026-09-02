@@ -165,13 +165,16 @@ def overall_fraction(payload):
     return None
 
 
-def run_occlude(input_path, output_path, progress_callback=None, cancel_check=None):
+def run_occlude(input_path, output_path, progress_callback=None,
+                cancel_check=None, status_callback=None):
     """Run OCCLUDE on a video file, blocking until done or cancelled.
 
     progress_callback(fraction, stage) is invoked as machine progress lines
-    arrive (fraction is overall 0.0-1.0). cancel_check() is polled a few
-    times per second; returning True terminates the subprocess. Both run on
-    the caller's thread, so a Qt caller can pump events from them.
+    arrive (fraction is overall 0.0-1.0); status_callback(line) receives
+    every other output line, so a UI can show model downloads and pass
+    banners while no frame progress exists yet. cancel_check() is polled a
+    few times per second; returning True terminates the subprocess. All run
+    on the caller's thread, so a Qt caller can pump events from them.
 
     Returns (success, message): message is a human-readable error (or the
     cancellation note) when success is False.
@@ -183,10 +186,15 @@ def run_occlude(input_path, output_path, progress_callback=None, cancel_check=No
     args = command + ["--input", input_path, "--output", output_path]
     env = _subprocess_env()
     log.info("Launching OCCLUDE: %s" % " ".join(args))
+    popen_kwargs = {}
+    if os.name == "nt":
+        # Without this, a console subprocess of the GUI app pops up an empty
+        # console window (its output goes to our pipe, not that window).
+        popen_kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0)
     try:
         process = subprocess.Popen(
             args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            stdin=subprocess.DEVNULL, env=env)
+            stdin=subprocess.DEVNULL, env=env, **popen_kwargs)
     except OSError as ex:
         return False, "Could not launch OCCLUDE: %s" % ex
 
@@ -242,6 +250,8 @@ def run_occlude(input_path, output_path, progress_callback=None, cancel_check=No
         else:
             log.info("OCCLUDE: %s" % line)
             tail = (tail + [line])[-15:]
+            if status_callback:
+                status_callback(line)
 
     try:
         process.wait(timeout=30)
