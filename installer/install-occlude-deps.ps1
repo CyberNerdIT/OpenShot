@@ -100,7 +100,9 @@ if (-not (Test-Path $venvPython)) {
 $occludeInstalled = $false
 foreach ($spec in $OccludeSpecs) {
     Write-Host "Trying: pip install $spec"
-    & $venvPython -m pip install --upgrade $spec
+    # --no-cache-dir: the branch zip keeps the same version number as code
+    # changes land, so a cached wheel would silently pin stale code
+    & $venvPython -m pip install --upgrade --no-cache-dir $spec
     if ($LASTEXITCODE -eq 0) { $occludeInstalled = $true; break }
     Write-Warning "Install from $spec failed - trying the next source"
 }

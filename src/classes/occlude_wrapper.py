@@ -115,6 +115,11 @@ def _subprocess_env():
     dependency installer's bin folder (bundled ffmpeg) on PATH."""
     env = dict(os.environ)
     env["OCCLUDE_MACHINE_PROGRESS"] = "1"
+    # Force UTF-8 in the child: on Windows a piped stdout defaults to the
+    # legacy ANSI code page (cp1252), and occlude's Unicode output (rich
+    # banner, tqdm bars) dies with UnicodeEncodeError on it.
+    env["PYTHONIOENCODING"] = "utf-8"
+    env["PYTHONUTF8"] = "1"
     deps_root = _windows_deps_root()
     if deps_root:
         bin_dir = os.path.join(deps_root, "bin")

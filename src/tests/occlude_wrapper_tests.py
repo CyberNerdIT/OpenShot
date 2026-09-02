@@ -129,6 +129,8 @@ class TestFindOcclude(unittest.TestCase):
     def test_subprocess_env_off_windows(self):
         env = occlude_wrapper._subprocess_env()
         self.assertEqual(env["OCCLUDE_MACHINE_PROGRESS"], "1")
+        self.assertEqual(env["PYTHONIOENCODING"], "utf-8")
+        self.assertEqual(env["PYTHONUTF8"], "1")
         self.assertEqual(env.get("PATH"), os.environ.get("PATH"))
 
     def test_blurred_output_path(self):
