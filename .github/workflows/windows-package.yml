@@ -44,6 +44,17 @@ jobs:
           python -m compileall -q src
           python src\tests\occlude_wrapper_tests.py
 
+      - name: Validate dependency installer script syntax
+        run: |
+          $errs = $null
+          $tokens = $null
+          [void][System.Management.Automation.Language.Parser]::ParseFile(
+            "$PWD\installer\install-occlude-deps.ps1", [ref]$tokens, [ref]$errs)
+          if ($errs) {
+            $errs | ForEach-Object { Write-Error $_.Message }
+            throw "install-occlude-deps.ps1 has parse errors"
+          }
+
       - name: Cache official OpenShot base installer
         uses: actions/cache@v4
         with:
@@ -70,7 +81,9 @@ jobs:
         run: innoextract -s -d base base-installer.exe
 
       - name: Overlay fork sources onto base application
-        run: Copy-Item -Path src\* -Destination base\app -Recurse -Force
+        run: |
+          Copy-Item -Path src\* -Destination base\app -Recurse -Force
+          Copy-Item installer\install-occlude-deps.ps1 base\app\
 
       - name: Read fork version
         id: version

@@ -112,6 +112,10 @@ class Export(QDialog):
         if self.occlude_available:
             self.chkOccludeBlur.setToolTip(
                 _("After exporting, run OCCLUDE on the exported video and save a blurred copy next to it"))
+        elif os.name == "nt":
+            self.chkOccludeBlur.setEnabled(False)
+            self.chkOccludeBlur.setToolTip(
+                _("OCCLUDE was not found. Run 'Install OCCLUDE dependencies' from the Start Menu (or install-occlude-deps.ps1 in the OpenShot folder), then restart OpenShot"))
         else:
             self.chkOccludeBlur.setEnabled(False)
             self.chkOccludeBlur.setToolTip(

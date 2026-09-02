@@ -104,6 +104,33 @@ class TestFindOcclude(unittest.TestCase):
         self.assertEqual(
             parsed, ["C:\\Program Files\\Python39\\python.exe", "-m", "occlude"])
 
+    def test_windows_deps_venv_discovered(self):
+        deps = tempfile.mkdtemp(prefix="occlude_deps_")
+        scripts = os.path.join(deps, "OpenShot-OCCLUDE", "venv", "Scripts")
+        os.makedirs(scripts)
+        exe = os.path.join(scripts, "occlude.exe")
+        open(exe, "w").close()
+        with mock.patch.object(occlude_wrapper.os, "name", "nt"), \
+                mock.patch.dict(os.environ, {"LOCALAPPDATA": deps}, clear=False):
+            os.environ.pop("OCCLUDE_COMMAND", None)
+            with mock.patch.object(occlude_wrapper.shutil, "which", return_value=None):
+                self.assertEqual(occlude_wrapper.find_occlude(), [exe])
+
+    def test_subprocess_env_prepends_deps_bin(self):
+        deps = tempfile.mkdtemp(prefix="occlude_deps_")
+        bin_dir = os.path.join(deps, "OpenShot-OCCLUDE", "bin")
+        os.makedirs(bin_dir)
+        with mock.patch.object(occlude_wrapper.os, "name", "nt"), \
+                mock.patch.dict(os.environ, {"LOCALAPPDATA": deps}, clear=False):
+            env = occlude_wrapper._subprocess_env()
+        self.assertTrue(env["PATH"].startswith(bin_dir + os.pathsep))
+        self.assertEqual(env["OCCLUDE_MACHINE_PROGRESS"], "1")
+
+    def test_subprocess_env_off_windows(self):
+        env = occlude_wrapper._subprocess_env()
+        self.assertEqual(env["OCCLUDE_MACHINE_PROGRESS"], "1")
+        self.assertEqual(env.get("PATH"), os.environ.get("PATH"))
+
     def test_blurred_output_path(self):
         self.assertEqual(
             occlude_wrapper.blurred_output_path("/tmp/My Video.mp4"),

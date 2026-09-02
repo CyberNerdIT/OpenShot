@@ -70,13 +70,26 @@ def _split_command(command_line):
     return shlex.split(command_line)
 
 
+def _windows_deps_root():
+    """%LOCALAPPDATA%\\OpenShot-OCCLUDE — where install-occlude-deps.ps1
+    puts the private occlude environment and bundled ffmpeg (or None off
+    Windows)."""
+    if os.name != "nt":
+        return None
+    base = os.environ.get("LOCALAPPDATA", "").strip()
+    if not base:
+        return None
+    return os.path.join(base, "OpenShot-OCCLUDE")
+
+
 def find_occlude():
     """Locate the OCCLUDE command, or None when it is not installed.
 
     Resolution order: the OCCLUDE_COMMAND env var (a full command line, for
-    custom installs), the `occlude` executable on PATH, then `python -m
-    occlude` when the package is importable by our interpreter.
-    Returns the command as an argument list.
+    custom installs), the `occlude` executable on PATH, the private
+    environment created by installer/install-occlude-deps.ps1 on Windows,
+    then `python -m occlude` when the package is importable by our
+    interpreter. Returns the command as an argument list.
     """
     custom = os.environ.get("OCCLUDE_COMMAND", "").strip()
     if custom:
@@ -84,12 +97,30 @@ def find_occlude():
     exe = shutil.which("occlude")
     if exe:
         return [exe]
+    deps_root = _windows_deps_root()
+    if deps_root:
+        venv_exe = os.path.join(deps_root, "venv", "Scripts", "occlude.exe")
+        if os.path.exists(venv_exe):
+            return [venv_exe]
     try:
         if importlib.util.find_spec("occlude") is not None:
             return [sys.executable, "-m", "occlude"]
     except Exception:
         pass
     return None
+
+
+def _subprocess_env():
+    """Environment for the occlude subprocess: machine progress on, and the
+    dependency installer's bin folder (bundled ffmpeg) on PATH."""
+    env = dict(os.environ)
+    env["OCCLUDE_MACHINE_PROGRESS"] = "1"
+    deps_root = _windows_deps_root()
+    if deps_root:
+        bin_dir = os.path.join(deps_root, "bin")
+        if os.path.isdir(bin_dir):
+            env["PATH"] = bin_dir + os.pathsep + env.get("PATH", "")
+    return env
 
 
 def blurred_output_path(export_path):
@@ -145,8 +176,7 @@ def run_occlude(input_path, output_path, progress_callback=None, cancel_check=No
         return False, "OCCLUDE is not installed (pip install occlude)"
 
     args = command + ["--input", input_path, "--output", output_path]
-    env = dict(os.environ)
-    env["OCCLUDE_MACHINE_PROGRESS"] = "1"
+    env = _subprocess_env()
     log.info("Launching OCCLUDE: %s" % " ".join(args))
     try:
         process = subprocess.Popen(

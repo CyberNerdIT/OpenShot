@@ -24,23 +24,42 @@ run, and download either artifact:
 
 ## Enabling the blur feature on Windows
 
-The app runs OCCLUDE as an external command. On the same machine:
+The app runs OCCLUDE as an external command, and ships a dependency
+installer that sets everything up (the checkbox in the Export dialog stays
+greyed out, with an install hint, until OCCLUDE is found). Run **one** of:
 
-1. Install [Python 3.10+](https://www.python.org/downloads/windows/) (check
-   "Add python.exe to PATH").
-2. `pip install occlude` — this puts `occlude.exe` on your PATH, which the
+- the **"Install OCCLUDE blur dependencies now"** checkbox on the last page
+  of the setup wizard (ticked by default),
+- **Start Menu → Install OCCLUDE dependencies** (installer builds), or
+- `install-occlude-deps.ps1` in the application folder (right-click → Run
+  with PowerShell — this is the route for the portable build).
+
+The script checks for Python (installing it via winget or python.org if
+missing), installs the occlude package into a private environment under
+`%LOCALAPPDATA%\OpenShot-OCCLUDE`, and fetches ffmpeg (used to keep the
+original audio). It touches no system Python and no PATH; OpenShot looks in
+that folder automatically. It is safe to re-run, and it's a several-GB
+download the first time (PyTorch and friends). When it finishes, **restart
+OpenShot** and the checkbox lights up.
+
+### Manual setup (alternative)
+
+1. Install [Python](https://www.python.org/downloads/windows/) (tick "Add
+   python.exe to PATH").
+2. In **Command Prompt** (not inside Python itself — no `>>>` prompt):
+   `pip install occlude`. This puts `occlude.exe` on your PATH, which the
    Export dialog detects.
 3. Install [ffmpeg](https://ffmpeg.org/download.html) and make sure
-   `ffmpeg.exe` is on your PATH (OCCLUDE uses it to keep the original audio).
-4. Optional: for silhouette-shaped blur,
+   `ffmpeg.exe` is on your PATH.
+4. Optional, for silhouette-shaped blur (needs git):
    `pip install "git+https://github.com/facebookresearch/sam2.git"`.
+   Without it OCCLUDE falls back to feathered-box blur.
 
-If `occlude` is installed somewhere unusual, set the `OCCLUDE_COMMAND`
-environment variable to the full command line, e.g.
+If `occlude` lives somewhere unusual, set the `OCCLUDE_COMMAND` environment
+variable to the full command line, e.g.
 `"C:\Python312\python.exe" -m occlude`.
 
-The checkbox in the Export dialog is greyed out (with an install hint) until
-OCCLUDE is found. Note that OCCLUDE is compute-heavy: without an NVIDIA GPU,
+Either way, note that OCCLUDE is compute-heavy: without an NVIDIA GPU,
 blurring a long video can take many times its duration.
 
 ## How the packaging works
