@@ -20,13 +20,13 @@ jobs:
     # Steps are a sequence of tasks that will be executed as part of the job
     steps:
     # Check out repository under $GITHUB_WORKSPACE
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     # Builds docs using sphinx
     - uses: ammaraskar/sphinx-action@master
       with:
         docs-folder: "doc/"
     # Create an artifact out of the generated HTML
-    - uses: actions/upload-artifact@v2.2.4
+    - uses: actions/upload-artifact@v4
       with:
         name: UserGuideHTML
         path: "doc/_build/html/"

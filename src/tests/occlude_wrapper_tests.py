@@ -25,10 +25,10 @@
  """
 
 import os
-import shlex
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 
@@ -93,9 +93,16 @@ class TestFindOcclude(unittest.TestCase):
         try:
             self.assertEqual(
                 occlude_wrapper.find_occlude(),
-                shlex.split("/opt/x/python -m occlude"))
+                ["/opt/x/python", "-m", "occlude"])
         finally:
             del os.environ["OCCLUDE_COMMAND"]
+
+    def test_windows_command_split_keeps_backslashes(self):
+        with mock.patch.object(occlude_wrapper.os, "name", "nt"):
+            parsed = occlude_wrapper._split_command(
+                '"C:\\Program Files\\Python39\\python.exe" -m occlude')
+        self.assertEqual(
+            parsed, ["C:\\Program Files\\Python39\\python.exe", "-m", "occlude"])
 
     def test_blurred_output_path(self):
         self.assertEqual(
@@ -111,7 +118,8 @@ class TestRunOcclude(unittest.TestCase):
         fake = os.path.join(tempfile.mkdtemp(prefix="occlude_test_"), "fake_occlude.py")
         with open(fake, "w") as f:
             f.write(script)
-        os.environ["OCCLUDE_COMMAND"] = "%s %s" % (shlex.quote(sys.executable), shlex.quote(fake))
+        # Quote both paths; _split_command handles this on posix and Windows
+        os.environ["OCCLUDE_COMMAND"] = '"%s" "%s"' % (sys.executable, fake)
         return os.path.dirname(fake)
 
     def tearDown(self):

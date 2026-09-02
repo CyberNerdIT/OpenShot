@@ -54,6 +54,22 @@ _STAGE_SPANS = [
 ]
 
 
+def _split_command(command_line):
+    """Split a custom command line into an argument list.
+
+    On Windows, posix-mode shlex would eat the backslashes in paths like
+    C:\\Python39\\python.exe, so split in non-posix mode there and strip the
+    surrounding quotes it leaves on quoted tokens.
+    """
+    if os.name == "nt":
+        args = shlex.split(command_line, posix=False)
+        return [
+            a[1:-1] if len(a) > 1 and a[0] == '"' and a[-1] == '"' else a
+            for a in args
+        ]
+    return shlex.split(command_line)
+
+
 def find_occlude():
     """Locate the OCCLUDE command, or None when it is not installed.
 
@@ -64,7 +80,7 @@ def find_occlude():
     """
     custom = os.environ.get("OCCLUDE_COMMAND", "").strip()
     if custom:
-        return shlex.split(custom)
+        return _split_command(custom)
     exe = shutil.which("occlude")
     if exe:
         return [exe]

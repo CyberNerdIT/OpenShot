@@ -1,0 +1,117 @@
+# Builds a Windows package of this fork (OpenShot + OCCLUDE integration).
+#
+# This fork only changes Python source files, and the official Windows build
+# of OpenShot ships those sources as plain files next to the frozen
+# executable. So instead of reproducing OpenShot's private MSYS2 build
+# machine, this workflow downloads the official 2.6.1 Windows installer
+# (checksum-pinned), extracts it, overlays this repository's src/ tree, and
+# repackages the result as a portable folder and an unsigned installer.
+#
+# Limitation of the overlay approach: src/launch.py is frozen INSIDE
+# openshot-qt.exe at official build time, so changes to launch.py itself
+# do not take effect. Every other file under src/ is loaded from disk.
+name: Windows Package
+
+on:
+  push:
+    branches:
+      - master
+      - "claude/**"
+  workflow_dispatch:
+
+env:
+  BASE_INSTALLER_URL: https://github.com/OpenShot/openshot-qt/releases/download/v2.6.1/OpenShot-v2.6.1-x86_64.exe
+  BASE_INSTALLER_SHA256: f712c58127be99b2a5f8ce51ac0377ad0e8a1931ee20979199b71f22f51aa047
+
+jobs:
+  windows-package:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      # The frozen app runs Python 3.8, so validate the sources against it
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.8"
+
+      - name: Validate sources against Python 3.8
+        run: |
+          python -m compileall -q src
+          python src\tests\occlude_wrapper_tests.py
+
+      - name: Cache official OpenShot base installer
+        uses: actions/cache@v4
+        with:
+          path: base-installer.exe
+          key: openshot-base-${{ env.BASE_INSTALLER_SHA256 }}
+
+      - name: Download official OpenShot base installer
+        run: |
+          if (-not (Test-Path base-installer.exe)) {
+            Invoke-WebRequest -Uri $env:BASE_INSTALLER_URL -OutFile base-installer.exe
+          }
+
+      - name: Verify base installer checksum
+        run: |
+          $hash = (Get-FileHash base-installer.exe -Algorithm SHA256).Hash.ToLower()
+          if ($hash -ne $env:BASE_INSTALLER_SHA256) {
+            throw "Base installer checksum mismatch: $hash"
+          }
+
+      - name: Install innoextract and Inno Setup
+        run: choco install -y --no-progress innoextract innosetup
+
+      - name: Extract base application
+        run: innoextract -s -d base base-installer.exe
+
+      - name: Overlay fork sources onto base application
+        run: Copy-Item -Path src\* -Destination base\app -Recurse -Force
+
+      - name: Read fork version
+        id: version
+        run: |
+          $m = Select-String -Path src\classes\info.py -Pattern 'VERSION = "(.*)"'
+          $version = $m.Matches[0].Groups[1].Value
+          "version=$version" >> $env:GITHUB_OUTPUT
+          Write-Host "Fork version: $version"
+
+      - name: Smoke test packaged application
+        timeout-minutes: 10
+        run: |
+          $proc = Start-Process -FilePath "base\app\openshot-qt-cli.exe" `
+            -ArgumentList "--version" -NoNewWindow -PassThru -Wait `
+            -RedirectStandardOutput version-out.txt -RedirectStandardError version-err.txt
+          Get-Content version-out.txt, version-err.txt
+          if ($proc.ExitCode -ne 0) { throw "openshot-qt-cli.exe --version exited with $($proc.ExitCode)" }
+          $out = Get-Content version-out.txt -Raw
+          if ($out -notmatch [regex]::Escape("${{ steps.version.outputs.version }}")) {
+            throw "Unexpected --version output: $out"
+          }
+
+      - name: Build unsigned installer
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { $iscc = "iscc" }
+          & $iscc /DVERSION=${{ steps.version.outputs.version }} `
+            /DSOURCE_DIR="$PWD\base\app" /O"$PWD\dist" `
+            installer\windows-installer-ci.iss
+          Get-ChildItem dist
+
+      - name: Upload portable build
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenShot-OCCLUDE-v${{ steps.version.outputs.version }}-win64-portable
+          path: base/app
+          retention-days: 30
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenShot-OCCLUDE-v${{ steps.version.outputs.version }}-win64-installer
+          path: dist/*.exe
+          retention-days: 30
