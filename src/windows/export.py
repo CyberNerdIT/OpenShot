@@ -43,11 +43,12 @@ from xml.parsers.expat import ExpatError
 
 from PyQt5.QtCore import Qt, QCoreApplication, QTimer, QSize, pyqtSignal, pyqtSlot
 from PyQt5.QtWidgets import (
-    QMessageBox, QDialog, QFileDialog, QDialogButtonBox, QPushButton
+    QMessageBox, QDialog, QFileDialog, QDialogButtonBox, QPushButton, QCheckBox
 )
 from PyQt5.QtGui import QIcon
 
 from classes import info
+from classes import occlude_wrapper
 from classes import ui_util
 from classes import openshot_rc  # noqa
 from classes.logger import log
@@ -100,6 +101,22 @@ class Export(QDialog):
         # Hide audio channels
         self.lblChannels.setVisible(False)
         self.txtChannels.setVisible(False)
+
+        # OCCLUDE integration: optionally run the exported video through
+        # OCCLUDE (https://github.com/CyberNerdIT/Occlude), which writes a
+        # copy with immodestly dressed people blurred next to the export
+        self.occlude_available = occlude_wrapper.find_occlude() is not None
+        self.blurred_file_path = None
+        self.chkOccludeBlur = QCheckBox(_("Blur immodest content with OCCLUDE"))
+        self.chkOccludeBlur.setChecked(False)
+        if self.occlude_available:
+            self.chkOccludeBlur.setToolTip(
+                _("After exporting, run OCCLUDE on the exported video and save a blurred copy next to it"))
+        else:
+            self.chkOccludeBlur.setEnabled(False)
+            self.chkOccludeBlur.setToolTip(
+                _("OCCLUDE was not found. Install it with 'pip install occlude' to blur exported videos"))
+        self.verticalLayout.addWidget(self.chkOccludeBlur)
 
         # Set OMP thread disabled flag (for stability)
         openshot.Settings.Instance().HIGH_QUALITY_SCALING = True
@@ -293,6 +310,47 @@ class Export(QDialog):
         self.progressExportVideo.setValue(current_frame)
         self.progressExportVideo.setFormat(percentage_string)
         self.setWindowTitle("%s %s" % (percentage_string, title_message))
+
+    def occludeExport(self, export_file_path):
+        """Run OCCLUDE on the exported video, saving a blurred copy next to it"""
+        _ = get_app()._tr
+        blurred_path = occlude_wrapper.blurred_output_path(export_file_path)
+        log.info("Blurring exported video with OCCLUDE: %s -> %s" % (export_file_path, blurred_path))
+
+        # Re-purpose the export progress bar for the blur passes
+        self.progressExportVideo.setMinimum(0)
+        self.progressExportVideo.setMaximum(1000)
+        self.progressExportVideo.setValue(0)
+        self.progressExportVideo.setFormat(_("Blurring with OCCLUDE... %p%"))
+        self.setWindowTitle(_("Blurring video with OCCLUDE, please wait..."))
+        QCoreApplication.processEvents()
+
+        def on_progress(fraction, stage):
+            self.progressExportVideo.setValue(int(fraction * 1000))
+            QCoreApplication.processEvents()
+
+        def is_cancelled():
+            # Keep the UI responsive; the Cancel button clears self.exporting
+            QCoreApplication.processEvents()
+            return not self.exporting
+
+        success, message = occlude_wrapper.run_occlude(
+            export_file_path, blurred_path,
+            progress_callback=on_progress, cancel_check=is_cancelled)
+
+        if success:
+            self.progressExportVideo.setValue(1000)
+            self.blurred_file_path = blurred_path
+            self.setWindowTitle(_("Blurred video saved: %s") % os.path.basename(blurred_path))
+            log.info("OCCLUDE finished: %s" % blurred_path)
+        elif self.exporting:
+            # A real failure (not a user cancellation): show a friendly error
+            log.warning("OCCLUDE failed: %s" % message)
+            msg = QMessageBox()
+            msg.setWindowTitle(_("OCCLUDE Error"))
+            msg.setText(_("Sorry, there was an error blurring your video: \n%s") % message)
+            msg.exec_()
+        return success
 
     def updateChannels(self):
         """Update the # of channels to match the channel layout"""
@@ -658,6 +716,7 @@ class Export(QDialog):
         self.tabWidget.setEnabled(False)
         self.export_button.setEnabled(False)
         self.btnBrowse.setEnabled(False)
+        self.chkOccludeBlur.setEnabled(False)
 
     def enableControls(self):
         """Enable all controls"""
@@ -668,6 +727,7 @@ class Export(QDialog):
         self.tabWidget.setEnabled(True)
         self.export_button.setEnabled(True)
         self.btnBrowse.setEnabled(True)
+        self.chkOccludeBlur.setEnabled(self.occlude_available)
 
     def accept(self):
         """ Start exporting video """
@@ -688,6 +748,7 @@ class Export(QDialog):
         # Init some variables
         seconds_run = 0
         fps_encode = 0
+        export_succeeded = False
 
         # Init progress bar
         self.progressExportVideo.setMinimum(self.txtStartFrame.value())
@@ -952,6 +1013,8 @@ class Export(QDialog):
                 format_of_progress_string
             )
 
+            export_succeeded = True
+
         except Exception as e:
             # TODO: Find a better way to catch the error. This is the only way I have found that
             # does not throw an error
@@ -986,6 +1049,15 @@ class Export(QDialog):
             msg.setWindowTitle(_("Export Error"))
             msg.setText(_("Sorry, there was an error exporting your video: \n%s") % friendly_error)
             msg.exec_()
+
+        # Optionally blur the exported video with OCCLUDE (video exports only,
+        # and only when the export finished without errors or cancellation)
+        if (export_succeeded and self.exporting
+                and self.chkOccludeBlur.isChecked()):
+            if export_type in [_("Video & Audio"), _("Video Only")]:
+                self.occludeExport(export_file_path)
+            else:
+                log.info("Skipping OCCLUDE blur: not a video export (%s)" % export_type)
 
         # Notify window of export started
         self.ExportEnded.emit(export_file_path)
@@ -1024,6 +1096,12 @@ class Export(QDialog):
             p = QPalette()
             p.setColor(QPalette.Highlight, Qt.green)
             self.progressExportVideo.setPalette(p)
+
+            # Mention the OCCLUDE-blurred copy (if one was written)
+            if self.blurred_file_path:
+                self.setWindowTitle("%s - %s" % (
+                    self.windowTitle(),
+                    _("Blurred video saved: %s") % os.path.basename(self.blurred_file_path)))
 
             # Raise the window
             self.show()
