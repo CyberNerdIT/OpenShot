@@ -55,13 +55,13 @@ except ImportError:
 # External links mappings for extlinks
 # see: http://www.sphinx-doc.org/en/master/usage/extensions/extlinks.html
 extlinks = {
-    # alias: (url_template, prefix)
+    # alias: (url_template, caption — Sphinx 4+ requires exactly one %s)
     'openshot-github':
-        ('https://github.com/OpenShot/%s', ''),
+        ('https://github.com/OpenShot/%s', '%s'),
     'libopenshot-wiki':
-        ('https://github.com/OpenShot/libopenshot/wiki/%s', ''),
+        ('https://github.com/OpenShot/libopenshot/wiki/%s', '%s'),
     'openshot-issue':
-        ('https://github.com/OpenShot/openshot-qt/issues/%s', 'issue ')
+        ('https://github.com/OpenShot/openshot-qt/issues/%s', 'issue %s')
 }
 
 # Add any paths that contain templates here, relative to this directory.

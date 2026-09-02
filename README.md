@@ -39,6 +39,16 @@ new commit to this repo.
 
 https://www.openshot.org/download/
 
+### Windows builds of this fork (OCCLUDE edition)
+
+This fork adds an optional [OCCLUDE](https://github.com/CyberNerdIT/Occlude)
+integration that blurs immodestly dressed people in exported videos. Windows
+builds with the feature included (a portable folder and an unsigned
+installer) are produced by the **Windows Package** GitHub Actions workflow on
+every push — download them from the repository's Actions tab. See
+[installer/WINDOWS-OCCLUDE.md](installer/WINDOWS-OCCLUDE.md) for details and
+for enabling OCCLUDE itself on Windows.
+
 ## Tutorial
 
 Watch the official [step-by-step video tutorial](https://www.youtube.com/watch?list=PLymupH2aoNQNezYzv2lhSwvoyZgLp1Q0T&v=1k-ISfd-YBE), or read the official [user-guide](https://www.openshot.org/user-guide/):
